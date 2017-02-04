@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use App\Models\Captura;
@@ -8,52 +7,47 @@ use Carbon\Carbon;
 
 class CapturaController extends Controller
 {
-  /**
-   * [index description]
-   * @param  Request $request [description]
-   * @return [type]           [description]
-   */
-  public function index(Request $request)
-  {
-    $per_page = $request->has('per_page') ? $request->input('per_page') : 10;
+    public function index(Request $request)
+    {
+        $per_page = $request->has('per_page') ? $request->per_page : 10;
+        $tipo = $request->has('tipo') ? $request->tipo : 'Oficina';
 
-    $captura = new Captura;
+        $captura = Captura::orderBy('created_at', 'desc');
+        if ($request->has('search')) {
+        }
 
-    if ($request->has('search')) {
-        // $captura = $captura->where('name', 'like', '%'.$request->search.'%')
-        // ->orWhere('site', 'like', '%'.$request->search.'%');
+        $captura->whereTipo($tipo);
+
+        return $captura->paginate($per_page);
     }
 
-    return $captura->paginate($per_page);
-  }
-
-  public function store(Request $request)
-  {
-    $captura = new Captura;
-    $captura->medidor_id = $request->medidor_id;
-    $captura->captura_inicial = $request->captura;
-    $captura->fecha_hora_inicial = Carbon::now()->toDateTimeString();
-    if (! $raspberry->save()) {
-        abort(500, 'Captura no creada.');
+    public function store(Request $request)
+    {
+        $captura = new Captura;
+        $captura->medidor_id = $request->medidor_id;
+        $captura->captura_inicial = $request->captura;
+        $captura->fecha_hora_inicial = Carbon::now()->toDateTimeString();
+        if (! $raspberry->save()) {
+            abort(500, 'Captura no creada.');
+        }
     }
-  }
 
-  public function show($id){
-    $captura = Captura::find($id);
-    if (! $captura) {
-        abort(404, 'Captura no encontrada');
+    public function show($id)
+    {
+        $captura = Captura::find($id);
+        if (! $captura) {
+            abort(404, 'Captura no encontrada');
+        }
+        return $captura;
     }
-    return $captura;
-  }
 
-  public function update(Request $request, $id)
-  {
-    $captura = $this->show($id);
-    $captura->captura_final = $request->captura;
-    $captura->fecha_hora_final = Carbon::now()->toDateTimeString();
-    if(!$captura->save()){
-      abort(500, 'Captura no actualizada.');
+    public function update(Request $request, $id)
+    {
+        $captura = $this->show($id);
+        $captura->captura_final = $request->captura;
+        $captura->fecha_hora_final = Carbon::now()->toDateTimeString();
+        if (!$captura->save()) {
+            abort(500, 'Captura no actualizada.');
+        }
     }
-  }
-
 }
