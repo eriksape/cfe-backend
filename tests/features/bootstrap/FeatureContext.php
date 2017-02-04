@@ -1,0 +1,214 @@
+<?php
+use Behat\Behat\Context\Context;
+use Behat\Behat\Context\SnippetAcceptingContext;
+use Behat\Gherkin\Node\PyStringNode;
+use Behat\Gherkin\Node\TableNode;
+use Behat\Behat\Hook\Scope\AfterStepScope;
+use Symfony\Component\HttpFoundation\File\UploadedFile;
+
+class FeatureContext extends TestCase implements Context, SnippetAcceptingContext
+{
+    /**
+     * The Guzzle HTTP Client.
+     */
+    protected $client;
+
+    /**
+     * The curren resource
+     */
+    protected $resource;
+
+    /**
+     * The request payload
+     */
+    protected $requestPayload;
+
+    /**
+     * The request files
+     */
+    protected $requestFiles = [];
+
+    /**
+     * The Guzzle HTTP Response.
+     */
+    protected $response;
+
+    /**
+     * The decoded response object.
+     */
+    protected $responsePayload;
+
+    /**
+     * The current scope within the response payload
+     * which conditions are asserted against.
+     */
+    protected $scope;
+
+    /**
+     * Initializes context.
+     *
+     * Every scenario gets its own context instance.
+     */
+    public function __construct()
+    {
+        parent::setUp();
+    }
+
+    /**
+     * The base URL to use while testing the application.
+     *
+     * @var string
+     */
+    protected $baseUrl = 'http://localhost:8000';
+
+    /**
+     * Checks the response exists and returns it.
+     *
+     * @return  Guzzle\Http\Message\Response
+     */
+    protected function getResponse()
+    {
+        if (! $this->response) {
+            throw new Exception("You must first make a request to check a response.");
+        }
+        return $this->response;
+    }
+
+    /**
+     * Returns the payload from the current scope within
+     * the response.
+     *
+     * @return mixed
+     */
+    protected function getScopePayload()
+    {
+        $payload = $this->getResponsePayload();
+        if (! $this->scope) {
+            return $payload;
+        }
+        return $this->arrayGet($payload, $this->scope);
+    }
+
+
+
+    /**
+     * Get an item from an array using "dot" notation.
+     *
+     * @copyright   Taylor Otwell
+     * @link        http://laravel.com/docs/helpers
+     * @param       array   $array
+     * @param       string  $key
+     * @param       mixed   $default
+     * @return      mixed
+     */
+    protected function arrayGet($array, $key)
+    {
+        if (is_null($key)) {
+            return $array;
+        }
+        // if (isset($array[$key])) {
+        //     return $array[$key];
+        // }
+        foreach (explode('.', $key) as $segment) {
+            if (is_object($array)) {
+                if (! isset($array->{$segment})) {
+                    return;
+                }
+                $array = $array->{$segment};
+            } elseif (is_array($array)) {
+                if (! array_key_exists($segment, $array)) {
+                    return;
+                }
+                $array = $array[$segment];
+            }
+        }
+        return $array;
+    }
+
+    /**
+     * Return the response payload from the current response.
+     *
+     * @return  mixed
+     */
+    protected function getResponsePayload()
+    {
+        if (! $this->responsePayload) {
+            $json = json_decode($this->getResponse()->content());
+            if (json_last_error() !== JSON_ERROR_NONE) {
+                $message = 'Failed to decode JSON body ';
+                switch (json_last_error()) {
+                    case JSON_ERROR_DEPTH:
+                        $message .= '(Maximum stack depth exceeded).';
+                        break;
+                    case JSON_ERROR_STATE_MISMATCH:
+                        $message .= '(Underflow or the modes mismatch).';
+                        break;
+                    case JSON_ERROR_CTRL_CHAR:
+                        $message .= '(Unexpected control character found).';
+                        break;
+                    case JSON_ERROR_SYNTAX:
+                        $message .= '(Syntax error, malformed JSON).';
+                        break;
+                    case JSON_ERROR_UTF8:
+                        $message .= '(Malformed UTF-8 characters, possibly incorrectly encoded).';
+                        break;
+                    default:
+                        $message .= '(Unknown error).';
+                        break;
+                }
+                throw new Exception($message);
+            }
+            $this->responsePayload = $json;
+        }
+        return $this->responsePayload;
+    }
+
+    /**
+     * @When /^hago una peticion ([A-Z]+) a "([^"]*)"$/
+     */
+    public function HagoUnaPeticionA($httpMethod, $resource)
+    {
+        $this->resource = $resource;
+        $server = [
+            'CONTENT_TYPE' => 'application/json',
+            'Accept' => 'application/json',
+            'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'
+        ];
+        try {
+            switch ($httpMethod) {
+                case 'PUT':
+                case 'POST':
+                    $data = json_decode($this->requestPayload, true);
+                    $content = json_encode($data);
+                    $files = $this->requestFiles;
+                    $server['CONTENT_LENGTH'] = mb_strlen($content, '8bit');
+                    $this->response = $this->
+                        call($httpMethod, $resource, [], [], $files, $server, $content);
+                    break;
+                default:
+                    $this->response = $this->
+                        call($httpMethod, $resource, [], [], [], $server);
+                    break;
+            }
+        } catch (Exception $e) {
+            echo $e;
+            // if ($e->getResponse() === null) throw $e;
+            // $this->response = $e->getResponse();
+        }
+    }
+
+    /**
+     * @Then /^obtengo una respuesta (\d+) del servidor$/
+     */
+    public function obtengoUnaRespuestaDelServidor($statusCode)
+    {
+        $response = $this->getResponse();
+        $contentType = $response->headers->get('content-type');
+        if ($contentType === 'application/json') {
+            $bodyOutput = $response->content();
+        } else {
+            $bodyOutput = 'Output is '.$contentType.', which is not JSON and is therefore scary. Run the request manually.';
+        }
+        $this->assertSame((int) $statusCode, $this->getResponse()->status(), $bodyOutput);
+    }
+}
