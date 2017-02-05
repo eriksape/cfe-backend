@@ -4,6 +4,7 @@ use Behat\Behat\Context\SnippetAcceptingContext;
 use Behat\Gherkin\Node\PyStringNode;
 use Behat\Gherkin\Node\TableNode;
 use Behat\Behat\Hook\Scope\AfterStepScope;
+use Behat\Behat\Hook\Scope\BeforeStepScope;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
 class FeatureContext extends TestCase implements Context, SnippetAcceptingContext
@@ -62,6 +63,19 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
     protected $baseUrl = 'http://localhost:8000';
 
     /**
+     * Verify every step
+     *
+     * @BeforeScenario
+    */
+    public function cleanDataBeforeScenario()
+    {
+        $this->requestPayload   = [];
+        $this->requestFiles     = [];
+        $this->response         = [];
+        $this->responsePayload  = [];
+    }
+
+    /**
      * Checks the response exists and returns it.
      *
      * @return  Guzzle\Http\Message\Response
@@ -89,8 +103,6 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
         return $this->arrayGet($payload, $this->scope);
     }
 
-
-
     /**
      * Get an item from an array using "dot" notation.
      *
@@ -101,15 +113,13 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
      * @param       mixed   $default
      * @return      mixed
      */
-    protected function arrayGet($array, $key)
+    protected function arrayGet($array, $key, $exclude_last=false)
     {
         if (is_null($key)) {
             return $array;
         }
-        // if (isset($array[$key])) {
-        //     return $array[$key];
-        // }
-        foreach (explode('.', $key) as $segment) {
+
+        foreach (explode('.', $key, $exclude_last?-1:0) as $segment) {
             if (is_object($array)) {
                 if (! isset($array->{$segment})) {
                     return;
@@ -210,5 +220,99 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
             $bodyOutput = 'Output is '.$contentType.', which is not JSON and is therefore scary. Run the request manually.';
         }
         $this->assertSame((int) $statusCode, $this->getResponse()->status(), $bodyOutput);
+    }
+
+    /**
+     * @Given /^la propiedad "([^"]*)" es igual a "([^"]*)"$/
+     */
+    public function laPropiedadEsIgualA($property, $expectedValue)
+    {
+        $payload = $this->getScopePayload();
+        $actualValue = $this->arrayGet($payload, $property);
+        $this->assertEquals(
+            $actualValue,
+            $expectedValue,
+            "Asserting the [$property] property in current scope equals [$expectedValue]: ".json_encode($payload)
+        );
+    }
+
+    /**
+     * @Given /^la propiedad "([^"]*)"( no)? existe$/
+     */
+    public function laPropiedadExiste($property, $isNegative=false)
+    {
+        $payload = $this->getScopePayload();
+        if (strpos($property, '.') !== false) {
+            $payload = $this->arrayGet($payload, $property, true);
+            $property = substr(strrchr($property, '.'), 1);
+        }
+
+        $message = sprintf(
+            'Asserting the [%s] property exists in the scope [%s]: %s',
+            $property,
+            $this->scope,
+            json_encode($payload)
+        );
+        if (is_object($payload)) {
+            $this->assertEquals(!$isNegative, array_key_exists($property, get_object_vars($payload)), $message);
+        } else {
+            $this->assertEquals(!$isNegative, array_key_exists($property, $payload), $message);
+        }
+    }
+
+    /**
+     * @Given que tengo los siguientes valores:
+     */
+    public function queTengoLosSiguientesValores(PyStringNode $requestPayload)
+    {
+        $this->requestPayload = $requestPayload;
+    }
+
+    /**
+     * @Given que tengo los siguientes archivos:
+     */
+    public function queTengoLosSiguientesArchivos(PyStringNode $requestFiles)
+    {
+        $this->requestFiles = [];
+        $files = json_decode(str_replace("__DIRECTORY__/", storage_path('tests/'), $requestFiles), true);
+        $fileNames = json_decode(str_replace("__DIRECTORY__/", '', $requestFiles), true);
+        foreach ($files as $key => $file) {
+            $mime = mime_content_type($file);
+            $files[$key] = new UploadedFile($file, $fileNames[$key], $mime, null, null, true);
+        }
+        $this->requestFiles = $files;
+    }
+
+    /**
+     * @Given /^la propiedad "([^"]*)" es de tipo ([^"]*)$/
+     */
+    public function laPropiedadEsDeTipo($property, $type)
+    {
+        $payload = $this->getScopePayload();
+        $actualValue = $this->arrayGet($payload, $property);
+        switch (strtolower($type)) {
+            case 'integer':
+            case 'entero':
+                $this->assertTrue(is_int($actualValue));
+                break;
+            case 'numeric':
+            case 'numerico':
+                $this->assertTrue(is_numeric($actualValue));
+                break;
+            case 'array':
+                $this->assertTrue(
+                    is_array($actualValue),
+                    "Asserting the [$property] property in current scope [{$this->scope}] is an array: ".json_encode($payload)
+                );
+                break;
+            case 'string':
+                $this->assertTrue(is_string($actualValue));
+                break;
+            case 'boolean':
+                $this->assertTrue(is_bool($actualValue));
+                break;
+            default:
+                throw new Exception("Data type undefined, you can define it.", 1);
+        }
     }
 }

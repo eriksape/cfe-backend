@@ -7,3 +7,25 @@ Característica: Rutas de API Básicas
 Escenario: GET "/"
   Cuando hago una peticion GET a "/"
   Entonces obtengo una respuesta 200 del servidor
+
+Escenario: GET "/"
+  Dado que tengo los siguientes valores:
+  """
+    {
+      "tipo":"fuera",
+      "per_page":"20",
+      "page":"3"
+    }
+  """
+  Cuando hago una peticion GET a "/"
+  Entonces obtengo una respuesta 200 del servidor
+  Y la propiedad "total" existe
+  Y la propiedad "per_page" existe
+  Y la propiedad "current_page" existe
+  Y la propiedad "last_page" existe
+  Y la propiedad "next_page_url" existe
+  Y la propiedad "prev_page_url" existe
+  Y la propiedad "from" existe
+  Y la propiedad "to" existe
+  Y la propiedad "data" es de tipo array
+  Y la propiedad "data.0.id" existe
