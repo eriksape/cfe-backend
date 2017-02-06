@@ -18,3 +18,11 @@
 $app->get('/', [
     'uses' => 'CapturaController@index'
 ]);
+
+$app->post('/', [
+    'uses' => 'CapturaController@store'
+]);
+
+$app->put('/{id}', [
+    'uses' => 'CapturaController@update'
+]);

@@ -18,7 +18,7 @@ class CapturaController extends Controller
 
         $captura->whereTipo($tipo);
 
-        return $captura->paginate($per_page);
+        return response()->json($captura->paginate($per_page), 200);
     }
 
     public function store(Request $request)
@@ -26,10 +26,21 @@ class CapturaController extends Controller
         $captura = new Captura;
         $captura->medidor_id = $request->medidor_id;
         $captura->captura_inicial = $request->captura;
+        $captura->tipo = "Oficina";
         $captura->fecha_hora_inicial = Carbon::now()->toDateTimeString();
-        if (! $raspberry->save()) {
+
+        $captura_anterior = Captura::whereMedidorId($request->medidor_id)
+          ->whereTipo('Fuera')
+          ->whereNull('consumo')
+          ->first();
+        $captura_anterior->captura_final = $request->captura;
+        $captura_anterior->consumo = $request->captura - $captura_anterior->captura_inicial;
+        $captura_anterior->fecha_hora_final = Carbon::now()->toDateTimeString();
+
+        if (! ($captura->save() && $captura_anterior->save()) ) {
             abort(500, 'Captura no creada.');
         }
+        return response()->json($captura, 201);
     }
 
     public function show($id)
@@ -45,9 +56,19 @@ class CapturaController extends Controller
     {
         $captura = $this->show($id);
         $captura->captura_final = $request->captura;
+        $captura->consumo = $request->captura - $captura->captura_inicial;
         $captura->fecha_hora_final = Carbon::now()->toDateTimeString();
-        if (!$captura->save()) {
+
+        $captura_posterior = new Captura;
+        $captura_posterior->medidor_id = $request->medidor_id;
+        $captura_posterior->captura_inicial = $request->captura;
+        $captura->tipo = "Fuera";
+        $captura_posterior->fecha_hora_inicial = Carbon::now()->toDateTimeString();
+
+        if (!($captura->save() && $captura_posterior->save())) {
             abort(500, 'Captura no actualizada.');
         }
+
+        return response()->json($captura, 200);
     }
 }

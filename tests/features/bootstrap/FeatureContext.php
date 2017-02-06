@@ -1,13 +1,12 @@
 <?php
 use Behat\Behat\Context\Context;
-use Behat\Behat\Context\SnippetAcceptingContext;
 use Behat\Gherkin\Node\PyStringNode;
-use Behat\Gherkin\Node\TableNode;
-use Behat\Behat\Hook\Scope\AfterStepScope;
-use Behat\Behat\Hook\Scope\BeforeStepScope;
+//use Behat\Gherkin\Node\TableNode;
+//use Behat\Behat\Hook\Scope\AfterStepScope;
+//use Behat\Behat\Hook\Scope\BeforeStepScope;
 use Symfony\Component\HttpFoundation\File\UploadedFile;
 
-class FeatureContext extends TestCase implements Context, SnippetAcceptingContext
+class FeatureContext extends TestCase implements Context
 {
     /**
      * The curren resource
@@ -17,22 +16,27 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
     /**
      * The request payload
      */
-    protected $requestPayload;
+    protected $requestPayload = "[]";
 
     /**
      * The request files
      */
-    protected $requestFiles;
+    protected $requestFiles  = [];
 
     /**
      * The HTTP Response.
      */
-    protected $response;
+    protected $response  = [];
 
     /**
      * The decoded response object.
      */
-    protected $responsePayload;
+    protected $responsePayload = [];
+
+    /**
+     * Save the future url params
+     */
+    protected $requestUrlParam = [];
 
     /**
      * The current scope within the response payload
@@ -51,6 +55,16 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
     }
 
     /**
+     * Creates the application.
+     *
+     * @return \Illuminate\Foundation\Application
+     */
+    public function createApplication()
+    {
+        return require __DIR__.'/../../../bootstrap/app.php';
+    }
+
+    /**
      * The base URL to use while testing the application.
      *
      * @var string
@@ -58,22 +72,9 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
     protected $baseUrl = 'http://localhost:8000';
 
     /**
-     * Verify every step
-     *
-     * @BeforeScenario
-    */
-    public function cleanDataBeforeScenario()
-    {
-        $this->requestPayload   = "[]";
-        $this->requestFiles     = [];
-        $this->response         = [];
-        $this->responsePayload  = [];
-    }
-
-    /**
      * Checks the response exists and returns it.
      *
-     * @return  Guzzle\Http\Message\Response
+     * @return  Response
      */
     protected function getResponse()
     {
@@ -178,6 +179,11 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
             'Accept' => 'application/json',
             'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'
         ];
+        if(!empty($this->requestUrlParam)){
+          foreach ($this->requestUrlParam as $key => $value) {
+            $resource = str_replace('{'.$key.'}', $value, $resource);
+          }
+        }
         try {
             switch ($httpMethod) {
                 case 'PUT':
@@ -236,10 +242,11 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
     }
 
     /**
-     * @Given /^la propiedad "([^"]*)"( no)? existe$/
+     * @Given /^la propiedad "([^"]*)"( no)? existe( y lo almacenamos)?$/
      */
-    public function laPropiedadExiste($property, $isNegative=false)
+    public function laPropiedadExiste($property, $isNegative=false, $saveIt=false)
     {
+        echo $saveIt;
         $payload = $this->getScopePayload();
         if (strpos($property, '.') !== false) {
             $payload = $this->arrayGet($payload, $property, true);
@@ -254,8 +261,16 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
         );
         if (is_object($payload)) {
             $this->assertEquals(!$isNegative, array_key_exists($property, get_object_vars($payload)), $message);
+            if($saveIt !== false){
+              $this->requestUrlParam[$property] = $payload->$property;
+              print_r($this->requestUrlParam);
+            }
         } else {
             $this->assertEquals(!$isNegative, array_key_exists($property, $payload), $message);
+            if($saveIt !== false){
+              $this->requestUrlParam[$property] = $payload[$property];
+              print_r($this->requestUrlParam);
+            }
         }
     }
 
@@ -313,5 +328,16 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
             default:
                 throw new Exception("Data type undefined, you can define it.", 1);
         }
+    }
+
+    /**
+     * @Given que reinicio los valores
+     */
+    public function queReinicioLosValores()
+    {
+        $this->requestPayload   = "[]";
+        $this->requestFiles     = [];
+        $this->response         = [];
+        $this->responsePayload  = [];
     }
 }
