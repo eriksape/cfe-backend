@@ -10,11 +10,6 @@ use Symfony\Component\HttpFoundation\File\UploadedFile;
 class FeatureContext extends TestCase implements Context, SnippetAcceptingContext
 {
     /**
-     * The Guzzle HTTP Client.
-     */
-    protected $client;
-
-    /**
      * The curren resource
      */
     protected $resource;
@@ -27,10 +22,10 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
     /**
      * The request files
      */
-    protected $requestFiles = [];
+    protected $requestFiles;
 
     /**
-     * The Guzzle HTTP Response.
+     * The HTTP Response.
      */
     protected $response;
 
@@ -69,7 +64,7 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
     */
     public function cleanDataBeforeScenario()
     {
-        $this->requestPayload   = [];
+        $this->requestPayload   = "[]";
         $this->requestFiles     = [];
         $this->response         = [];
         $this->responsePayload  = [];
@@ -105,13 +100,6 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
 
     /**
      * Get an item from an array using "dot" notation.
-     *
-     * @copyright   Taylor Otwell
-     * @link        http://laravel.com/docs/helpers
-     * @param       array   $array
-     * @param       string  $key
-     * @param       mixed   $default
-     * @return      mixed
      */
     protected function arrayGet($array, $key, $exclude_last=false)
     {
@@ -119,7 +107,13 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
             return $array;
         }
 
-        foreach (explode('.', $key, $exclude_last?-1:0) as $segment) {
+        if ($exclude_last) {
+            $explode = explode('.', $key, -1);
+        } else {
+            $explode = explode('.', $key);
+        }
+
+        foreach ($explode as $segment) {
             if (is_object($array)) {
                 if (! isset($array->{$segment})) {
                     return;
@@ -194,6 +188,11 @@ class FeatureContext extends TestCase implements Context, SnippetAcceptingContex
                     $server['CONTENT_LENGTH'] = mb_strlen($content, '8bit');
                     $this->response = $this->
                         call($httpMethod, $resource, [], [], $files, $server, $content);
+                    break;
+                case 'GET':
+                    $data = json_decode($this->requestPayload, true);
+                    $this->response = $this->
+                        call($httpMethod, $resource, $data);
                     break;
                 default:
                     $this->response = $this->

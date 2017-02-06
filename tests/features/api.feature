@@ -12,7 +12,7 @@ Escenario: GET "/"
   Dado que tengo los siguientes valores:
   """
     {
-      "tipo":"fuera",
+      "tipo":"Fuera",
       "per_page":"20",
       "page":"3"
     }
@@ -21,7 +21,9 @@ Escenario: GET "/"
   Entonces obtengo una respuesta 200 del servidor
   Y la propiedad "total" existe
   Y la propiedad "per_page" existe
+  Y la propiedad "per_page" es igual a "20"
   Y la propiedad "current_page" existe
+  Y la propiedad "current_page" es igual a "3"
   Y la propiedad "last_page" existe
   Y la propiedad "next_page_url" existe
   Y la propiedad "prev_page_url" existe
@@ -29,3 +31,5 @@ Escenario: GET "/"
   Y la propiedad "to" existe
   Y la propiedad "data" es de tipo array
   Y la propiedad "data.0.id" existe
+  Y la propiedad "data.0.tipo" existe
+  Y la propiedad "data.0.tipo" es igual a "Fuera"
