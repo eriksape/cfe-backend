@@ -37,7 +37,7 @@ class CapturaController extends Controller
         $captura_anterior->consumo = $request->captura - $captura_anterior->captura_inicial;
         $captura_anterior->fecha_hora_final = Carbon::now()->toDateTimeString();
 
-        if (! ($captura->save() && $captura_anterior->save()) ) {
+        if (! ($captura->save() && $captura_anterior->save())) {
             abort(500, 'Captura no creada.');
         }
         return response()->json($captura, 201);
@@ -62,7 +62,7 @@ class CapturaController extends Controller
         $captura_posterior = new Captura;
         $captura_posterior->medidor_id = $request->medidor_id;
         $captura_posterior->captura_inicial = $request->captura;
-        $captura->tipo = "Fuera";
+        $captura_posterior->tipo = "Fuera";
         $captura_posterior->fecha_hora_inicial = Carbon::now()->toDateTimeString();
 
         if (!($captura->save() && $captura_posterior->save())) {

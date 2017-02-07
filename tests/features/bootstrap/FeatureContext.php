@@ -61,7 +61,9 @@ class FeatureContext extends TestCase implements Context
      */
     public function createApplication()
     {
-        return require __DIR__.'/../../../bootstrap/app.php';
+        $app = require __DIR__.'/../../../bootstrap/app.php';
+        $app->withFacades();
+        return $app;
     }
 
     /**
@@ -70,6 +72,28 @@ class FeatureContext extends TestCase implements Context
      * @var string
      */
     protected $baseUrl = 'http://localhost:8000';
+
+    /**
+     * Begin a database transaction.
+     *
+     * @BeforeScenario
+     */
+    public static function beginTransaction()
+    {
+        DB::beginTransaction();
+    }
+
+
+    /**
+     *
+     * Roll it back after the scenario.
+     *
+     * @AfterScenario
+     */
+    public static function rollback()
+    {
+        DB::rollback();
+    }
 
     /**
      * Checks the response exists and returns it.
@@ -179,10 +203,10 @@ class FeatureContext extends TestCase implements Context
             'Accept' => 'application/json',
             'HTTP_X_REQUESTED_WITH' => 'XMLHttpRequest'
         ];
-        if(!empty($this->requestUrlParam)){
-          foreach ($this->requestUrlParam as $key => $value) {
-            $resource = str_replace('{'.$key.'}', $value, $resource);
-          }
+        if (!empty($this->requestUrlParam)) {
+            foreach ($this->requestUrlParam as $key => $value) {
+                $resource = str_replace('{'.$key.'}', $value, $resource);
+            }
         }
         try {
             switch ($httpMethod) {
@@ -246,7 +270,6 @@ class FeatureContext extends TestCase implements Context
      */
     public function laPropiedadExiste($property, $isNegative=false, $saveIt=false)
     {
-        echo $saveIt;
         $payload = $this->getScopePayload();
         if (strpos($property, '.') !== false) {
             $payload = $this->arrayGet($payload, $property, true);
@@ -261,15 +284,13 @@ class FeatureContext extends TestCase implements Context
         );
         if (is_object($payload)) {
             $this->assertEquals(!$isNegative, array_key_exists($property, get_object_vars($payload)), $message);
-            if($saveIt !== false){
-              $this->requestUrlParam[$property] = $payload->$property;
-              print_r($this->requestUrlParam);
+            if ($saveIt !== false) {
+                $this->requestUrlParam[$property] = $payload->$property;
             }
         } else {
             $this->assertEquals(!$isNegative, array_key_exists($property, $payload), $message);
-            if($saveIt !== false){
-              $this->requestUrlParam[$property] = $payload[$property];
-              print_r($this->requestUrlParam);
+            if ($saveIt !== false) {
+                $this->requestUrlParam[$property] = $payload[$property];
             }
         }
     }

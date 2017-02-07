@@ -51,6 +51,8 @@ Escenario: POST Y PUT
   Y la propiedad "medidor_id" es igual a "1"
   Y la propiedad "tipo" existe
   Y la propiedad "tipo" es igual a "Oficina"
+  Dado que reinicio los valores
+  Y que tengo los siguientes valores:
   """
     {
       "captura":150,
