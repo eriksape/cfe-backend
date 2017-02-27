@@ -26,3 +26,7 @@ $app->post('/', [
 $app->put('/{id}', [
     'uses' => 'CapturaController@update'
 ]);
+
+$app->get('/medidor', [
+    'uses' => 'MedidorController@index'
+]);
